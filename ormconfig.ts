@@ -23,11 +23,17 @@ export const postgres: ConnectionOptions = {
     process.env.DATABASE_URL ||
     `postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_NAME}`,
   synchronize: true,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
   logging: false,
-  entities: [`${__dirname}/src/entities/**/*.js`],
-  migrations: [`${__dirname}/src/migrations/**/*.ts`],
-  subscribers: [`${__dirname}/src/subscribers/**/*.js`],
+  entities: [`${__dirname}/src/entities/*.js`, "src/entities/**/*.ts"],
+  migrations: ["src/migrations/**/*.ts"],
+  subscribers: [
+    `${__dirname}/src/subscribers/**/*.js`,
+    "src/subscribers/**/*.ts",
+  ],
   cli: {
     entitiesDir: `src/entities`,
     migrationsDir: `src/migrations`,
