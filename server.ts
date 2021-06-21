@@ -4,7 +4,6 @@ import express from "express";
 import helmet from "helmet";
 import { Server } from "http";
 import morgan from "morgan";
-import path from "path";
 import "reflect-metadata";
 import { Connection, createConnection } from "typeorm";
 import { postgres } from "./ormconfig";
