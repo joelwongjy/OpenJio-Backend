@@ -27,14 +27,6 @@ export class ApiServer {
     app.use(bodyParser.urlencoded({ extended: true, limit: "20mb" }));
     app.use(cors(corsOptions));
     app.use(helmet());
-    if (process.env.NODE_ENV === "production") {
-      app.use(express.static("frontend/build"));
-      app.get("*", (req, res) => {
-        res.sendFile(
-          path.resolve(__dirname, "frontend", "build", "index.html")
-        );
-      });
-    }
     if (process.env.NODE_ENV !== "test") {
       console.log(`Express server has started on port ${port}.`);
       app.use(morgan("dev"));
