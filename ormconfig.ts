@@ -16,7 +16,6 @@ const {
   POSTGRES_PORT,
   POSTGRES_NAME,
   POSTGRES_DISABLE_SSL,
-  POSTGRES_SYNCHRONISE,
 } = process.env;
 
 if (
@@ -30,15 +29,13 @@ if (
   throw new Error("Missing database config!");
 }
 
-const postgres: ConnectionOptions = {
+export const postgres: ConnectionOptions = {
   type: "postgres",
-  username: POSTGRES_USERNAME,
-  password: POSTGRES_PASSWORD,
-  host: POSTGRES_HOST,
-  port: Number(POSTGRES_PORT),
-  database: POSTGRES_NAME,
+  url:
+    process.env.DATABASE_URL ||
+    `postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_NAME}`,
+  synchronize: true,
   ssl: !POSTGRES_DISABLE_SSL,
-  synchronize: !!POSTGRES_SYNCHRONISE,
   logging: false,
   entities: [`${__dirname}/src/entities/**/*.js`, "src/entities/**/*.ts"],
   migrations: ["src/migrations/**/*.ts"],
@@ -55,8 +52,4 @@ const postgres: ConnectionOptions = {
   dropSchema: false,
 };
 
-if (process.env.DATABASE_URL) {
-  Object.assign(postgres, { url: process.env.DATABASE_URL });
-}
-
-export default postgres;
+module.exports = postgres;
