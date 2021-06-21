@@ -28,12 +28,9 @@ export const postgres: ConnectionOptions = {
       ? { rejectUnauthorized: false }
       : false,
   logging: false,
-  entities: ["build/src/entities/*.*", "src/entities/*.ts"],
+  entities: ["src/entities/*.js", "src/entities/*.ts"],
   migrations: ["src/migrations/**/*.ts"],
-  subscribers: [
-    `${__dirname}/src/subscribers/**/*.js`,
-    "src/subscribers/**/*.ts",
-  ],
+  subscribers: ["src/subscribers/**/*.js", "src/subscribers/**/*.ts"],
   cli: {
     entitiesDir: `src/entities`,
     migrationsDir: `src/migrations`,
