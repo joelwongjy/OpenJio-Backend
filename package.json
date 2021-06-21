@@ -7,6 +7,7 @@
   "repository": "https://github.com/openjio/backend",
   "author": "JoJo's Circus",
   "dependencies": {
+    "@types/node": "^14.6.4",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
     "class-validator": "^0.12.2",
@@ -35,7 +36,6 @@
     "@types/jsonwebtoken": "^8.5.0",
     "@types/lodash": "^4.14.161",
     "@types/morgan": "^1.9.1",
-    "@types/node": "^14.6.4",
     "@types/supertest": "^2.0.10",
     "cross-env": "^7.0.2",
     "faker": "^5.1.0",
