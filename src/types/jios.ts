@@ -1,4 +1,3 @@
-import { User } from "src/entities/User";
 import { DiscardableData } from "./entities";
 import { OrderListData } from "./orders";
 export interface JioPatchData {
@@ -16,7 +15,7 @@ export interface JioPostData {
   name: string;
   closeAt: Date;
   paymentNumber: string;
-  user: User;
+  userId: number;
   orderLimit?: number;
 }
 export interface JioListData extends DiscardableData {

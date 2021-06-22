@@ -15,7 +15,7 @@ import {
   JioUserData,
 } from "../../types/jios";
 import { OrderPatchData } from "src/types/orders";
-import { ConnectionOptionsReader, getRepository, MoreThan } from "typeorm";
+import { getRepository, MoreThan } from "typeorm";
 import { flatMap } from "lodash";
 class JioCreatorError extends Error {
   constructor(message: string) {
@@ -55,7 +55,7 @@ export class JioGetter {
       where: {
         closeAt: MoreThan(new Date()),
       },
-      relations: ["orders"],
+      relations: ["user", "orders"],
     });
     const joined = joinedJiosQuery.map((j) => {
       return {
@@ -76,7 +76,7 @@ export class JioGetter {
           id: userId,
         },
       },
-      relations: ["orders"],
+      relations: ["user", "orders"],
     });
     const opened = openedJiosQuery.map((j) => {
       return {
@@ -124,7 +124,11 @@ export class JioGetter {
 }
 export class JioCreator {
   public async createJio(createData: JioPostData): Promise<Jio> {
-    const { name, closeAt, paymentNumber, user, orderLimit } = createData;
+    const { name, closeAt, paymentNumber, userId, orderLimit } = createData;
+
+    const user = await getRepository(User).findOneOrFail({
+      where: { id: userId },
+    });
 
     let jio: Jio = new Jio(name, closeAt, paymentNumber, user, orderLimit);
     const errors = await validate(jio);
