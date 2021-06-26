@@ -64,13 +64,7 @@ export async function show(
   const { id } = request.params;
 
   try {
-    const idInt = parseInt(id, 10);
-    if (isNaN(idInt)) {
-      response.status(400).json({ success: false });
-      return;
-    }
-
-    const jio = await new JioGetter().getJio(idInt);
+    const jio = await new JioGetter().getJio(id);
 
     response.status(200).json(jio);
     return;

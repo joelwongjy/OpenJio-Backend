@@ -17,6 +17,12 @@ import {
 import { OrderPatchData } from "src/types/orders";
 import { getRepository, MoreThan } from "typeorm";
 import { flatMap } from "lodash";
+class JioGetterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = JIO_CREATOR_ERROR;
+  }
+}
 class JioCreatorError extends Error {
   constructor(message: string) {
     super(message);
@@ -61,6 +67,7 @@ export class JioGetter {
       return {
         ...j.getBase(),
         name: j.name,
+        joinCode: j.joinCode,
         createdAt: j.createdAt,
         closeAt: j.closeAt,
         username: j.user.username,
@@ -82,6 +89,7 @@ export class JioGetter {
       return {
         ...j.getBase(),
         name: j.name,
+        joinCode: j.joinCode,
         createdAt: j.createdAt,
         closeAt: j.closeAt,
         username: j.user.username,
@@ -93,14 +101,14 @@ export class JioGetter {
     return { joined, opened };
   }
 
-  public async getJio(id: number): Promise<JioData | undefined> {
+  public async getJio(id: string): Promise<JioData | undefined> {
     const jio = await getRepository(Jio).findOne({
-      where: { id },
-      relations: ["orders"],
+      where: { joinCode: id.toLowerCase() },
+      relations: ["orders", "user"],
     });
 
     if (!jio) {
-      return undefined;
+      throw new JioGetterError(`Could not find an OpenJio with a matching ID`);
     }
 
     const orders = await Promise.all(
@@ -115,8 +123,8 @@ export class JioGetter {
       username: jio.user.username,
       orderLimit: jio.orderLimit,
       orderCount: jio.orders.length,
+      joinCode: jio.joinCode,
       orders,
-      paymentNumber: jio.paymentNumber,
     };
 
     return result;
@@ -124,13 +132,13 @@ export class JioGetter {
 }
 export class JioCreator {
   public async createJio(createData: JioPostData): Promise<Jio> {
-    const { name, closeAt, paymentNumber, userId, orderLimit } = createData;
+    const { name, closeAt, userId, orderLimit } = createData;
 
     const user = await getRepository(User).findOneOrFail({
       where: { id: userId },
     });
 
-    let jio: Jio = new Jio(name, closeAt, paymentNumber, user, orderLimit);
+    let jio: Jio = new Jio(name, closeAt, user, orderLimit);
     const errors = await validate(jio);
     if (errors.length > 0) {
       throw new JioCreatorError(
@@ -152,15 +160,9 @@ export class JioEditor {
       relations: ["orders"],
     });
 
-    const { name, closeAt, paymentNumber, orderLimit, orders } = editData;
+    const { name, closeAt, orderLimit, orders } = editData;
     let jio: Jio;
-    jio = await this.editJioAttributes(
-      query,
-      name,
-      closeAt,
-      paymentNumber,
-      orderLimit
-    );
+    jio = await this.editJioAttributes(query, name, closeAt, orderLimit);
 
     if (orders) {
       jio = await this.editAssociatedOrders(query, {
@@ -175,10 +177,9 @@ export class JioEditor {
     jio: Jio,
     name?: string,
     closeAt?: Date,
-    paymentNumber?: string,
     orderLimit?: number
   ): Promise<Jio> {
-    if (!name && !closeAt && !paymentNumber && !orderLimit) {
+    if (!name && !closeAt && !orderLimit) {
       return jio;
     }
 
@@ -187,9 +188,6 @@ export class JioEditor {
     }
     if (closeAt) {
       jio.closeAt = closeAt;
-    }
-    if (paymentNumber) {
-      jio.paymentNumber = paymentNumber;
     }
     if (orderLimit) {
       jio.orderLimit = orderLimit;

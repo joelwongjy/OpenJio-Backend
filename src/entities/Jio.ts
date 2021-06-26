@@ -1,5 +1,6 @@
 import { IsInt, IsNotEmpty, IsPhoneNumber, Min } from "class-validator";
 import _ from "lodash";
+import { nanoid } from "nanoid";
 import { JioData, JioListData } from "src/types/jios";
 import {
   Column,
@@ -17,20 +18,19 @@ import { User } from "./User";
 export class Jio extends Discardable {
   entityName = "Jio";
 
-  constructor(
-    name: string,
-    closeAt: Date,
-    paymentNumber: string,
-    user: User,
-    orderLimit?: number
-  ) {
+  constructor(name: string, closeAt: Date, user: User, orderLimit?: number) {
     super();
     this.name = name;
     this.closeAt = closeAt;
-    this.paymentNumber = paymentNumber;
     this.user = user;
     this.orderLimit = orderLimit ?? 1000;
   }
+
+  @Column("varchar", {
+    length: 6,
+    default: () => `'${nanoid(6)}'`,
+  })
+  joinCode!: string;
 
   @Column()
   @IsNotEmpty()
@@ -39,11 +39,6 @@ export class Jio extends Discardable {
   @Column({ type: "timestamptz" })
   @IsNotEmpty()
   closeAt: Date;
-
-  @Column({ type: "character varying" })
-  @IsNotEmpty()
-  @IsPhoneNumber("SG")
-  paymentNumber: string;
 
   @Column({ nullable: true })
   @IsInt()
@@ -72,6 +67,7 @@ export class Jio extends Discardable {
     return {
       ...this.getBase(),
       name: this.name,
+      joinCode: this.joinCode,
       closeAt: this.closeAt,
       username: this.user.username,
       orderCount,
@@ -83,7 +79,6 @@ export class Jio extends Discardable {
     return {
       ...(await this.getListData()),
       orders: await Promise.all(orders.map((order) => order.getListData())),
-      paymentNumber: this.paymentNumber,
     };
   };
 }
