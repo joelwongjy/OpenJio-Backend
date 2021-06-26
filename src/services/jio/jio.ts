@@ -15,7 +15,7 @@ import {
   JioUserData,
 } from "../../types/jios";
 import { OrderPatchData } from "src/types/orders";
-import { getRepository, MoreThan } from "typeorm";
+import { getRepository, ILike, MoreThan } from "typeorm";
 import { flatMap } from "lodash";
 class JioGetterError extends Error {
   constructor(message: string) {
@@ -103,7 +103,7 @@ export class JioGetter {
 
   public async getJio(id: string): Promise<JioData | undefined> {
     const jio = await getRepository(Jio).findOne({
-      where: { joinCode: id.toLowerCase() },
+      where: { joinCode: ILike(`%${id}%`) },
       relations: ["orders", "user"],
     });
 
