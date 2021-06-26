@@ -1,11 +1,10 @@
 import { IsOptional } from "class-validator";
-import { Column } from "typeorm";
+import { Column, DeleteDateColumn } from "typeorm";
 import { DiscardableData } from "../types/entities";
 import { Base } from "./Base";
 
 export abstract class Discardable extends Base {
-  @Column({ type: "timestamp without time zone", nullable: true })
-  @IsOptional()
+  @DeleteDateColumn({ type: "timestamptz" })
   discardedAt!: Date | null;
 
   getBase = (): DiscardableData => ({
