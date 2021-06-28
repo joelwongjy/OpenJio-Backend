@@ -6,6 +6,7 @@ import { User } from "../../entities/User";
 import {
   JIO_CREATOR_ERROR,
   JIO_EDITOR_ERROR,
+  JIO_GETTER_ERROR,
   ORDER_EDITOR_ERROR,
 } from "../../types/errors";
 import {
@@ -20,7 +21,7 @@ import { flatMap } from "lodash";
 class JioGetterError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = JIO_CREATOR_ERROR;
+    this.name = JIO_GETTER_ERROR;
   }
 }
 class JioCreatorError extends Error {
@@ -104,28 +105,20 @@ export class JioGetter {
   public async getJio(id: string): Promise<JioData | undefined> {
     const jio = await getRepository(Jio).findOne({
       where: { joinCode: ILike(`%${id}%`) },
-      relations: ["orders", "user"],
+      relations: [
+        "orders",
+        "orders.user",
+        "orders.jio",
+        "orders.jio.user",
+        "user",
+      ],
     });
 
     if (!jio) {
       throw new JioGetterError(`Could not find an OpenJio with a matching ID`);
     }
 
-    const orders = await Promise.all(
-      jio.orders.map((order) => order.getListData())
-    );
-
-    const result: JioData = {
-      ...jio.getBase(),
-      name: jio.name,
-      createdAt: jio.createdAt,
-      closeAt: jio.closeAt,
-      username: jio.user.username,
-      orderLimit: jio.orderLimit,
-      orderCount: jio.orders.length,
-      joinCode: jio.joinCode,
-      orders,
-    };
+    const result: JioData = await jio.getData();
 
     return result;
   }
@@ -150,6 +143,7 @@ export class JioCreator {
     }
 
     jio = await getRepository(Jio).save(jio);
+    console.log(jio);
     return jio;
   }
 }
@@ -212,27 +206,22 @@ export class JioEditor {
     const toCreate: Order[] = [];
     const toDelete: Order[] = [];
 
-    editData.orders.forEach(async (order) => {
+    for (const order of editData.orders) {
       if (order.id && orderMap.has(order.id)) {
         const orderInMap = orderMap.get(order.id)!;
         toKeep.push(orderInMap);
         orderMap.delete(order.id);
-        return;
+        continue;
       }
 
-      const { userId } = order;
-
-      const user = await getRepository(User).findOneOrFail({
-        where: { userId },
-      });
-
-      if (!userId) {
-        throw new JioEditorError(
-          `Could not create new order as no userId was given`
-        );
-      }
-      toCreate.push(new Order(user, jio));
-    });
+      await getRepository(User)
+        .findOneOrFail({
+          where: { id: order.userId },
+        })
+        .then((user) => {
+          toCreate.push(new Order(user, jio));
+        });
+    }
 
     orderMap.forEach((order) => {
       toDelete.push(order);
@@ -304,7 +293,7 @@ export class OrderEditor {
     });
 
     if (!order) {
-      throw new OrderEditorError(`No class found for id ${id}`);
+      throw new OrderEditorError(`No order found for id ${id}`);
     }
 
     const { paid, items } = editData;

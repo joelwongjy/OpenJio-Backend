@@ -1,8 +1,15 @@
-import { Column, Entity, getRepository, ManyToOne, OneToMany } from "typeorm";
+import {
+  Column,
+  Entity,
+  getRepository,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+} from "typeorm";
 import { Discardable } from "./Discardable";
 import { Jio } from "./Jio";
 import { Item } from "./Item";
-import { OrderData, OrderListData } from "src/types/orders";
+import { OrderData } from "src/types/orders";
 import { User } from "./User";
 
 @Entity()
@@ -23,36 +30,26 @@ export class Order extends Discardable {
   items!: Item[];
 
   @ManyToOne((type) => Jio, (jio) => jio.orders)
+  @JoinColumn()
   jio!: Jio;
 
-  @ManyToOne(() => User, (user) => user.orders)
+  @ManyToOne(() => User, (user) => user.orders, { eager: false })
+  @JoinColumn()
   user: User;
 
-  getItems = async (): Promise<Item[]> => {
-    const items = (
-      await getRepository(Order).findOneOrFail({
-        where: { id: this.id },
-        relations: ["items"],
-      })
-    ).items;
-    return items;
-  };
-
-  getListData = async (): Promise<OrderListData> => {
-    const items = this.items || (await this.getItems());
-    const cost = items.map((item) => item.cost ?? 0).reduce((a, b) => a + b);
+  getData = async (): Promise<OrderData> => {
+    const order = await getRepository(Order).findOneOrFail({
+      where: { id: this.id },
+      relations: ["items", "user"],
+    });
+    const items = this.items || order.items;
+    const cost = items.map((item) => item.cost ?? 0).reduce((a, b) => a + b, 0);
     return {
       ...this.getBase(),
+      userId: order.user.id,
+      username: order.user.name,
       paid: this.paid,
-      itemCount: items.length,
       cost,
-    };
-  };
-
-  getData = async (): Promise<OrderData> => {
-    const items = this.items || (await this.getItems());
-    return {
-      ...(await this.getListData()),
       items,
     };
   };

@@ -1,8 +1,9 @@
-import { IsInt, IsNotEmpty, IsPhoneNumber, Min } from "class-validator";
+import { IsInt, IsNotEmpty, Min } from "class-validator";
 import _ from "lodash";
 import { nanoid } from "nanoid";
 import { JioData, JioListData } from "src/types/jios";
 import {
+  BeforeInsert,
   Column,
   Entity,
   getRepository,
@@ -26,10 +27,7 @@ export class Jio extends Discardable {
     this.orderLimit = orderLimit ?? 1000;
   }
 
-  @Column("varchar", {
-    length: 6,
-    default: () => `'${nanoid(6)}'`,
-  })
+  @Column("varchar", { length: 6 })
   joinCode!: string;
 
   @Column()
@@ -52,6 +50,11 @@ export class Jio extends Discardable {
   @OneToMany(() => Order, (order) => order.jio)
   orders!: Order[];
 
+  @BeforeInsert()
+  setJoinCode() {
+    this.joinCode = nanoid(6);
+  }
+
   getOrders = async (): Promise<Order[]> => {
     const orders = (
       await getRepository(Jio).findOneOrFail({
@@ -69,7 +72,7 @@ export class Jio extends Discardable {
       name: this.name,
       joinCode: this.joinCode,
       closeAt: this.closeAt,
-      username: this.user.username,
+      username: this.user.name,
       orderCount,
     };
   };
@@ -78,7 +81,7 @@ export class Jio extends Discardable {
     const orders = this.orders || this.getOrders();
     return {
       ...(await this.getListData()),
-      orders: await Promise.all(orders.map((order) => order.getListData())),
+      orders: await Promise.all(orders.map((order) => order.getData())),
     };
   };
 }

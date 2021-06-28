@@ -3,20 +3,23 @@ import { DiscardableData } from "./entities";
 
 export interface OrderPatchData {
   paid?: boolean;
-  items?: {
-    id: number;
+  items: {
+    id?: number;
     name?: string;
     quantity?: number;
     cost?: number;
   }[];
 }
 
-export interface OrderListData extends DiscardableData {
+export interface OrderData extends DiscardableData {
+  userId: number;
+  username: string;
   paid: boolean;
-  itemCount: number;
-  cost: number;
-}
-
-export interface OrderData extends OrderListData {
-  items: Item[];
+  items: {
+    id: number;
+    name: string;
+    quantity: number;
+    cost?: number;
+  }[];
+  cost?: number;
 }
