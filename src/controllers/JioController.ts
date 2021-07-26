@@ -7,8 +7,6 @@ import {
   JioPostData,
   JioUserData,
 } from "src/types/jios";
-import { getConnection } from "typeorm";
-import { Jio } from "src/entities/Jio";
 
 export async function create(
   request: Request<{}, any, JioPostData, any>,

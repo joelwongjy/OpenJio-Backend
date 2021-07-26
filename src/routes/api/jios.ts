@@ -5,8 +5,8 @@ import { BearerTokenType } from "../../types/tokens";
 
 export const router = Router();
 
-router.use(checkBearerToken(BearerTokenType.AccessToken));
 router.get("/:id", JioController.show);
+router.use(checkBearerToken(BearerTokenType.AccessToken));
 router.get("/user/:id", JioController.showUserJios);
 router.post("/create", JioController.create);
 router.patch("/:id", JioController.edit);

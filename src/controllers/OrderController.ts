@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Order } from "../entities/Order";
 import { OrderData, OrderPatchData } from "../types/orders";
-import { getConnection, getRepository } from "typeorm";
+import { getRepository } from "typeorm";
 import { SuccessId, TYPEORM_ENTITYNOTFOUND } from "../types/errors";
 import { OrderEditor } from "../services/jio";
 

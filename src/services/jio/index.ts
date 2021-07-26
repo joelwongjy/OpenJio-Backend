@@ -5,4 +5,5 @@ export {
   JioDeleter,
   OrderEditor,
   OrderDeletor,
+  ItemEditor,
 } from "./jio";

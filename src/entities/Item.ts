@@ -22,9 +22,9 @@ export class Item extends Discardable {
   @IsNotEmpty()
   quantity: number;
 
-  @Column({ nullable: true })
+  @Column("decimal", { scale: 2, nullable: true })
   cost?: number;
 
-  @ManyToOne((type) => Order, (order) => order.items)
+  @ManyToOne((type) => Order, (order) => order.items, { onDelete: "CASCADE" })
   order!: Order;
 }

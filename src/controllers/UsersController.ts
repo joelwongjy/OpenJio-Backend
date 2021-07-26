@@ -85,11 +85,12 @@ export async function updateSelf(
   }
 
   try {
-    Object.assign(user, pick(request.body, "name"));
+    Object.assign(user, pick(request.body, "paylah"));
     await getRepository(User).save(user);
 
     const data = user.getData();
     response.status(200).json({ user: data });
+    console.log(data);
   } catch (error) {
     response.sendStatus(400);
   }

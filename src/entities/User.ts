@@ -55,6 +55,9 @@ export class User extends Discardable {
   @Match("password")
   confirmPassword: string | null;
 
+  @Column({ length: 10, nullable: true })
+  paylah?: string;
+
   @OneToMany((type) => Jio, (jio) => jio.user)
   openJios!: Jio[];
 
@@ -62,7 +65,6 @@ export class User extends Discardable {
   orders!: Order[];
 
   @BeforeInsert()
-  @BeforeUpdate()
   hashPassword() {
     this.password = this.password ? hashSync(this.password) : null;
   }
@@ -91,6 +93,7 @@ export class User extends Discardable {
     ...this.getBase(),
     username: this.username,
     name: this.name,
+    paylah: this.paylah,
   });
 
   getData = (): UserData => {
