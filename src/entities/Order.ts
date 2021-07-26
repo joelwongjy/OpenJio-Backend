@@ -26,10 +26,10 @@ export class Order extends Discardable {
   @Column()
   paid: boolean;
 
-  @OneToMany((type) => Item, (item) => item.order)
+  @OneToMany((type) => Item, (item) => item.order, { onDelete: "CASCADE" })
   items!: Item[];
 
-  @ManyToOne((type) => Jio, (jio) => jio.orders)
+  @ManyToOne((type) => Jio, (jio) => jio.orders, { onDelete: "CASCADE" })
   @JoinColumn()
   jio!: Jio;
 

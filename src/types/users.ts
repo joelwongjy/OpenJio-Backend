@@ -13,13 +13,15 @@ export interface UserLoginData {
 }
 
 export interface UserPatchData {
-  username: string;
-  name: string;
+  username?: string;
+  name?: string;
+  paylah?: string;
 }
 
 export interface UserListData extends DiscardableData {
   username: string;
   name: string;
+  paylah?: string;
 }
 
 export interface UserData extends UserListData {}

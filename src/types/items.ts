@@ -1,5 +1,10 @@
 export interface ItemListData {
-    name: string;
-    quantity: number;
-    cost?: number;
+  id: number;
+  name: string;
+  quantity: number;
+  cost?: number;
+}
+
+export interface ItemPatchData {
+  cost: number;
 }

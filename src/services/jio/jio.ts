@@ -1,9 +1,10 @@
 import { validate } from "class-validator";
 import { Item } from "../../entities/Item";
-import { Jio } from "../../entities/Jio";
+import { Jio, JioState } from "../../entities/Jio";
 import { Order } from "../../entities/Order";
 import { User } from "../../entities/User";
 import {
+  ITEM_EDITOR_ERROR,
   JIO_CREATOR_ERROR,
   JIO_EDITOR_ERROR,
   JIO_GETTER_ERROR,
@@ -16,8 +17,10 @@ import {
   JioUserData,
 } from "../../types/jios";
 import { OrderPatchData } from "src/types/orders";
-import { getRepository, ILike, MoreThan } from "typeorm";
+import { getRepository, ILike } from "typeorm";
 import { flatMap } from "lodash";
+import { ItemPatchData } from "src/types/items";
+import { isAfter, isBefore } from "date-fns";
 class JioGetterError extends Error {
   constructor(message: string) {
     super(message);
@@ -44,6 +47,14 @@ class OrderEditorError extends Error {
     this.name = ORDER_EDITOR_ERROR;
   }
 }
+
+class ItemEditorError extends Error {
+  constructor(message: string) {
+    super();
+    this.message = message;
+    this.name = ITEM_EDITOR_ERROR;
+  }
+}
 export class JioGetter {
   public async getJios(jioIds: number[]): Promise<Jio[]> {
     const jios =
@@ -58,48 +69,58 @@ export class JioGetter {
   }
 
   public async getUserOpenJios(userId: number): Promise<JioUserData> {
-    const joinedJiosQuery = await getRepository(Jio).find({
-      where: {
-        closeAt: MoreThan(new Date()),
-      },
-      relations: ["user", "orders"],
-    });
-    const joined = joinedJiosQuery.map((j) => {
-      return {
-        ...j.getBase(),
-        name: j.name,
-        joinCode: j.joinCode,
-        createdAt: j.createdAt,
-        closeAt: j.closeAt,
-        username: j.user.username,
-        orderLimit: j.orderLimit,
-        orderCount: j.orders.length,
-      };
+    const jiosQuery = await getRepository(User).findOne({
+      where: { id: userId },
+      relations: [
+        "openJios",
+        "openJios.orders",
+        "openJios.user",
+        "orders",
+        "orders.jio",
+        "orders.jio.user",
+        "orders.jio.orders",
+      ],
     });
 
-    const openedJiosQuery = await getRepository(Jio).find({
-      where: {
-        closeAt: MoreThan(new Date()),
-        user: {
-          id: userId,
-        },
-      },
-      relations: ["user", "orders"],
-    });
-    const opened = openedJiosQuery.map((j) => {
-      return {
-        ...j.getBase(),
-        name: j.name,
-        joinCode: j.joinCode,
-        createdAt: j.createdAt,
-        closeAt: j.closeAt,
-        username: j.user.username,
-        orderLimit: j.orderLimit,
-        orderCount: j.orders.length,
-      };
-    });
+    if (!jiosQuery) {
+      throw new JioGetterError(`Could not find a user with a matching ID`);
+    }
 
-    return { joined, opened };
+    const toPay = await Promise.all(
+      jiosQuery.orders
+        .filter(
+          (order) =>
+            !order.paid &&
+            order.jio.user.id !== userId &&
+            order.jio.jioState === JioState.COST_ENTERED
+        )
+        .map(async (order) => {
+          return order.jio.getListData();
+        })
+    );
+
+    const joined = await Promise.all(
+      jiosQuery.orders
+        .filter(
+          (order) =>
+            (order.jio.jioState === JioState.OPEN ||
+              order.jio.jioState === JioState.CLOSED) &&
+            order.jio.user.id !== userId
+        )
+        .map(async (order) => {
+          return order.jio.getListData();
+        })
+    );
+
+    const opened = await Promise.all(
+      jiosQuery.openJios
+        .filter((jio) => jio.jioState !== JioState.PAYMENT_DONE)
+        .map((j) => {
+          return j.getListData();
+        })
+    );
+
+    return { toPay, joined, opened };
   }
 
   public async getJio(id: string): Promise<JioData | undefined> {
@@ -115,7 +136,12 @@ export class JioGetter {
     });
 
     if (!jio) {
-      throw new JioGetterError(`Could not find an OpenJio with a matching ID`);
+      throw new JioGetterError(`Could not find an OpenJio matching id ${id}`);
+    }
+
+    if (jio.jioState === JioState.OPEN && isBefore(jio.closeAt, new Date())) {
+      jio.jioState = JioState.CLOSED;
+      await getRepository(Jio).save(jio);
     }
 
     const result: JioData = await jio.getData();
@@ -143,7 +169,6 @@ export class JioCreator {
     }
 
     jio = await getRepository(Jio).save(jio);
-    console.log(jio);
     return jio;
   }
 }
@@ -154,9 +179,25 @@ export class JioEditor {
       relations: ["orders"],
     });
 
-    const { name, closeAt, orderLimit, orders } = editData;
+    const {
+      name,
+      closeAt,
+      orderLimit,
+      orders,
+      jioState,
+      deliveryCost,
+      discount,
+    } = editData;
     let jio: Jio;
-    jio = await this.editJioAttributes(query, name, closeAt, orderLimit);
+    jio = await this.editJioAttributes(
+      query,
+      jioState,
+      name,
+      closeAt,
+      orderLimit,
+      deliveryCost,
+      discount
+    );
 
     if (orders) {
       jio = await this.editAssociatedOrders(query, {
@@ -169,9 +210,12 @@ export class JioEditor {
 
   private async editJioAttributes(
     jio: Jio,
+    jioState: JioState,
     name?: string,
     closeAt?: Date,
-    orderLimit?: number
+    orderLimit?: number,
+    deliveryCost?: number,
+    discount?: number
   ): Promise<Jio> {
     if (!name && !closeAt && !orderLimit) {
       return jio;
@@ -186,6 +230,7 @@ export class JioEditor {
     if (orderLimit) {
       jio.orderLimit = orderLimit;
     }
+    jio.jioState = jioState;
 
     await getRepository(Jio).save(jio);
     return jio;
@@ -317,6 +362,7 @@ export class OrderEditor {
           const i = itemMap.get(item.id)!;
           toKeep.push(i);
           itemMap.delete(item.id);
+          return;
         }
 
         const { name, quantity, cost } = item;
@@ -335,7 +381,7 @@ export class OrderEditor {
 
     // save
     await getRepository(Item).save(toKeep);
-    await getRepository(Item).softRemove(toDelete);
+    await getRepository(Item).remove(toDelete);
     await getRepository(Item).save(toCreate);
 
     const prevCount = order.items.length;
@@ -349,6 +395,24 @@ export class OrderEditor {
     return order;
   }
 }
+export class ItemEditor {
+  public async editItem(id: number, editData: ItemPatchData) {
+    const item = await getRepository(Item).findOne({
+      where: { id },
+    });
+
+    if (!item) {
+      throw new ItemEditorError(`No item found for id ${id}.`);
+    }
+
+    const { cost } = editData;
+    item.cost = cost;
+
+    await getRepository(Item).save(item);
+    return item;
+  }
+}
+
 export class JioDeleter {
   public async deleteJio(id: number) {
     const jio = await getRepository(Jio).findOneOrFail({
@@ -365,7 +429,7 @@ export class JioDeleter {
   }
 
   private async _deleteJio(jio: Jio): Promise<void> {
-    await getRepository(Jio).softRemove(jio);
+    await getRepository(Jio).remove(jio);
   }
 }
 export class OrderDeletor {
@@ -392,10 +456,10 @@ export class OrderDeletor {
   }
 
   private async _deleteOrders(orders: Order[]): Promise<Order[]> {
-    return await getRepository(Order).softRemove(orders);
+    return await getRepository(Order).remove(orders);
   }
 
   private async _deleteItems(items: Item[]): Promise<Item[]> {
-    return await getRepository(Item).softRemove(items);
+    return await getRepository(Item).remove(items);
   }
 }
